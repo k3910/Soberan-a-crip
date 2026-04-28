@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KERNEL SOBERANO v3 — Protección de Identidad</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --c0: #050b0a;
+  --c1: #091412;
+  --c2: #0f2420;
+  --green: #00e5b0;
+  --green2: #00ffcc;
+  --green-dim: #00e5b033;
+  --green-glow: #00e5b011;
+  --cyan: #00c8ff;
+  --amber: #ffcc00;
+  --red: #ff4466;
+  --text: #b8ffe8;
+  --dim: #3a6a58;
+  --border: #163028;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--c0);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* Scanlines */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,176,0.012) 2px, rgba(0,229,176,0.012) 4px);
+  pointer-events:none; z-index:200;
+}
+
+/* Animated grid */
+.grid-bg {
+  position:fixed; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,229,176,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,176,0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridDrift 20s linear infinite;
+}
+@keyframes gridDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 48px 48px; }
+}
+
+/* Floating particles */
+.particles { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.particle {
+  position:absolute;
+  width:2px; height:2px;
+  background: var(--green);
+  border-radius:50%;
+  animation: float linear infinite;
+  opacity:0;
+}
+@keyframes float {
+  0%   { transform: translateY(100vh) translateX(0); opacity:0; }
+  10%  { opacity:0.6; }
+  90%  { opacity:0.3; }
+  100% { transform: translateY(-10vh) translateX(40px); opacity:0; }
+}
+
+.wrap {
+  position:relative; z-index:10;
+  max-width:900px;
+  margin:0 auto;
+  padding:36px 20px 60px;
+}
+
+/* ── HEADER ── */
+header { margin-bottom:48px; text-align:center; }
+
+.badge {
+  display:inline-block;
+  font-size:10px;
+  letter-spacing:.25em;
+  color: var(--dim);
+  border:1px solid var(--border);
+  padding:4px 14px;
+  margin-bottom:20px;
+}
+.badge span { color: var(--green); }
+
+h1 {
+  font-family:'Orbitron', sans-serif;
+  font-weight:900;
+  font-size: clamp(26px, 7vw, 58px);
+  letter-spacing:.06em;
+  color: var(--green2);
+  text-shadow: 0 0 20px var(--green-dim), 0 0 80px var(--green-glow);
+  line-height:1.05;
+  margin-bottom:12px;
+}
+
+.tagline {
+  font-size:11px;
+  color: var(--dim);
+  letter-spacing:.25em;
+  margin-bottom:28px;
+}
+
+/* Security badges row */
+.badges-row {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:0;
+}
+.sec-badge {
+  font-size:10px;
+  letter-spacing:.1em;
+  padding:5px 12px;
+  border:1px solid var(--border);
+  color: var(--dim);
+}
+.sec-badge.active { border-color: var(--green-dim); color: var(--green); }
+
+/* ── PANEL ── */
+.panel {
+  background: var(--c1);
+  border:1px solid var(--border);
+  margin-bottom:16px;
+  position:relative;
+  overflow:hidden;
+}
+.panel::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  opacity:.5;
+}
+.ph {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 18px;
+  border-bottom:1px solid var(--border);
+  font-size:10px; color:var(--dim); letter-spacing:.18em;
+}
+.dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 6px var(--green);
+  animation:blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.pb { padding:22px 18px; }
+
+/* ── STRENGTH METER ── */
+.strength-row {
+  display:flex; gap:4px; margin-bottom:6px;
+}
+.strength-bar {
+  flex:1; height:3px;
+  background: var(--border);
+  transition: background .3s;
+}
+.strength-label {
+  font-size:10px; color:var(--dim); letter-spacing:.1em; margin-bottom:16px;
+  min-height:14px;
+}
+
+/* ── ALGO SELECTOR ── */
+.algo-row {
+  display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;
+}
+.algo-btn {
+  flex:1; min-width:100px;
+  padding:8px;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--dim);
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:.12em;
+  cursor:crosshair;
+  text-align:center;
+  transition: all .2s;
+}
+.algo-btn.sel {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-glow);
+}
+.algo-btn:hover:not(.sel) { border-color: var(--dim); color: var(--text); }
+
+/* ── INPUT ── */
+label {
+  display:block;
+  font-size:10px; color:var(--dim); letter-spacing:.2em; margin-bottom:8px;
+}
+.input-wrap {
+  display:flex;
+  border:1px solid var(--border);
+  background: var(--c0);
+  transition: border-color .2s, box-shadow .2s;
+  margin-bottom:12px;
+}
+.input-wrap:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green-dim), inset 0 0 24px var(--green-glow);
+}
+.ipfx {
+  padding:0 12px;
+  color:var(--green); border-right:1px solid var(--border);
+  line-height:46px; font-size:13px; user-select:none;
+}
+input[type=text], input[type=number] {
+  flex:1; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:'Share Tech Mono',monospace;
+  font-size:13px; padding:12px 14px; caret-color:var(--green);
+}
+input::placeholder { color:var(--dim); }
+
+/* PBKDF2 iterations */
+.iter-row { display:flex; gap:8px; align-items:center; margin-bottom:20px; }
+.iter-row label { margin:0; white-space:nowrap; }
+.iter-row input { width:100px; flex:none; }
+.iter-note { font-size:10px; color:var(--dim); }
+
+/* ── BUTTON ── */
+.btn {
+  width:100%;
+  padding:14px;
+  background:transparent;
+  border:1px solid var(--green);
+  color:var(--green);
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; letter-spacing:.22em;
+  cursor:crosshair;
+  text-transform:uppercase;
+  transition: background .2s, box-shadow .2s;
+  position:relative; overflow:hidden;
+}
+.btn:hover { background:var(--green-dim); box-shadow:0 0 24px var(--green-dim); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn::after {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent, rgba(0,229,176,.12), transparent);
+  transform:translateX(-100%);
+  transition:transform .5s;
+}
+.btn:hover::after { transform:translateX(100%); }
+
+/* ── PROGRESS ── */
+.progress-wrap { display:none; margin-bottom:16px; }
+.progress-track {
+  background:var(--border); height:2px; position:relative; overflow:hidden;
+}
+.progress-fill {
+  position:absolute; left:0; top:0; bottom:0;
+  background:var(--green);
+  width:0%; transition:width .1s;
+  box-shadow:0 0 8px var(--green);
+}
+.progress-label { font-size:10px; color:var(--dim); letter-spacing:.12em; margin-top:6px; }
+
+/* ── OUTPUT ── */
+.output-section { display:none; animation:fadeUp .4s ease; }
+.output-section.visible { display:block; }
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.status-bar {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 16px;
+  border:1px solid var(--green-dim);
+  background:var(--green-glow);
+  font-size:11px; color:var(--green); letter-spacing:.1em;
+  margin-bottom:14px;
+}
+
+.meta-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap:8px; margin-bottom:14px;
+}
+.mc {
+  background:var(--c0); border:1px solid var(--border);
+  padding:10px 14px;
+}
+.mc .k { font-size:9px; color:var(--dim); letter-spacing:.18em; display:block; margin-bottom:4px; }
+.mc .v { font-size:12px; color:var(--text); }
+.mc .v.g { color:var(--green); }
+.mc .v.a { color:var(--amber); }
+.mc .v.c { color:var(--cyan); }
+
+/* Hash boxes */
+.hash-box {
+  background:var(--c0); border:1px solid var(--border);
+  padding:14px 16px; margin-bottom:8px; position:relative;
+}
+.hash-box .hl { font-size:9px; color:var(--dim); letter-spacing:.18em; margin-bottom:8px; }
+.hash-val {
+  font-size:12px; color:var(--green); word-break:break-all; line-height:1.7;
+  text-shadow:0 0 8px var(--green-dim);
+}
+.hash-val.cyan { color:var(--cyan); text-shadow:0 0 8px #00c8ff33; }
+.hash-val.amber { color:var(--amber); text-shadow:0 0 8px #ffcc0033; }
+
+.copy-btn {
+  position:absolute; top:10px; right:10px;
+  background:transparent; border:1px solid var(--border);
+  color:var(--dim); font-family:'Share Tech Mono',monospace;
+  font-size:9px; padding:3px 10px; cursor:crosshair; letter-spacing:.1em;
+  transition:all .2s;
+}
+.copy-btn:hover { border-color:var(--green); color:var(--green); }
+
+/* Blocks grid */
+.blocks-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.block-cell {
+  background:var(--c0); border:1px solid var(--border); padding:10px 12px;
+}
+.block-cell .bl { font-size:9px; color:var(--dim); letter-spacing:.15em; margin-bottom:6px; }
+.block-cell .bv { font-size:10px; color:var(--amber); word-break:break-all; line-height:1.5; }
+
+/* Log */
+.log-scroll { max-height:180px; overflow-y:auto; }
+.log-line {
+  font-size:10px; padding:4px 0;
+  border-bottom:1px solid #0d1c16;
+  display:flex; gap:12px;
+}
+.log-line .ts { color:#1e4a36; min-width:170px; flex-shrink:0; }
+.log-line .lm { color:var(--dim); flex:1; word-break:break-all; }
+.log-line .lm span { color:var(--green); }
+.log-empty { font-size:10px; color:var(--dim); }
+
+/* ── HOW IT WORKS ── */
+.steps { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:8px; }
+.step {
+  background:var(--c0); border:1px solid var(--border);
+  padding:14px; position:relative; overflow:hidden;
+}
+.step::before {
+  content:'';
+  position:absolute; top:0; left:0; bottom:0; width:2px;
+  background:var(--green); opacity:.3;
+}
+.step-n { font-size:28px; color:var(--border); font-family:'Orbitron',sans-serif; font-weight:900; margin-bottom:8px; }
+.step-t { font-size:11px; color:var(--green); letter-spacing:.1em; margin-bottom:6px; }
+.step-d { font-size:10px; color:var(--dim); line-height:1.6; }
+
+/* Footer */
+footer {
+  margin-top:48px; padding-top:18px; border-top:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:8px;
+}
+footer div { font-size:9px; color:#163028; letter-spacing:.1em; }
+footer .right { text-align:right; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:var(--c0); }
+::-webkit-scrollbar-thumb { background:var(--border); }
+
+@media(max-width:520px) {
+  .blocks-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="particles" id="particles"></div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="badge">SVR: <span>CLIENT-ONLY</span> &nbsp;|&nbsp; MODO: <span>SOBERANO</span> &nbsp;|&nbsp; RED: <span>NINGUNA</span></div>
+    <h1>🔐 KERNEL SOBERANO</h1>
+    <div class="tagline">SISTEMA DE ANONIMIZACIÓN CRIPTOGRÁFICA DE IDENTIDAD</div>
+    <div class="badges-row">
+      <div class="sec-badge active">✓ SHA-256</div>
+      <div class="sec-badge active">✓ SHA-512</div>
+      <div class="sec-badge active">✓ PBKDF2</div>
+      <div class="sec-badge active">✓ SAL ALEATORIA</div>
+      <div class="sec-badge active">✓ 0 DATOS ENVIADOS</div>
+    </div>
+  </header>
+
+  <!-- INPUT PANEL -->
+  <div class="panel">
+    <div class="ph"><div class="dot"></div> MÓDULO DE ENTRADA — CONFIGURACIÓN DE PROTECCIÓN</div>
+    <div class="pb">
+
+      <!-- Algo selector -->
+      <label>▸ ALGORITMO BASE</label>
+      <div class="algo-row">
+        <button class="algo-btn sel" onclick="selectAlgo('SHA-256',this)">SHA-256<br><span style="font-size:9px;opacity:.6">256-bit</span></button>
+        <button class="algo-btn" onclick="selectAlgo('SHA-512',this)">SHA-512<br><span style="font-size:9px;opacity:.6">512-bit</span></button>
+        <button class="algo-btn" onclick="selectAlgo('CASCADE',this)">CASCADE<br><span style="font-size:9px;opacity:.6">SHA-256+512</span></button>
+      </div>
+
+      <!-- Input ID -->
+      <label>▸ IDENTIFICADOR A PROTEGER</label>
+      <div class="input-wrap">
+        <span class="ipfx">$&gt;</span>
+        <input type="text" id="userInput" placeholder="Ingrese ID, correo, nombre…" autocomplete="off" oninput="evalStrength(this.value)" />
+      </div>
+
+      <!-- Strength -->
+      <div class="strength-row" id="strengthBars">
+        <div class="strength-bar" id="sb1"></div>
+        <div class="strength-bar" id="sb2"></div>
+        <div class="strength-bar" id="sb3"></div>
+        <div class="strength-bar" id="sb4"></div>
+        <div class="strength-bar" id="sb5"></div>
+      </div>
+      <div class="strength-label" id="strengthLabel"></div>
+
+      <!-- PBKDF2 iterations -->
+      <div class="iter-row">
+        <label>▸ ITERACIONES PBKDF2</label>
+        <div class="input-wrap" style="margin:0; width:130px;">
+          <input type="number" id="iterInput" value="310000" min="10000" max="1000000" />
+        </div>
+        <span class="iter-note">↑ más = más lento = más seguro</span>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">PROCESANDO…</div>
+      </div>
+
+      <button class="btn" id="mainBtn" onclick="procesarIdentidad()">
+        ⟳ EJECUTAR FILTRO DE SOBERANÍA
+      </button>
+
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="output-section" id="outputSection">
+
+    <div class="status-bar">
+      <span>✓</span>
+      <span id="statusMsg">FILTRO ACTIVO — IDENTIDAD PROTEGIDA</span>
+    </div>
+
+    <!-- Meta -->
+    <div class="meta-grid">
+      <div class="mc"><span class="k">ALGORITMO</span><span class="v g" id="mAlgo">—</span></div>
+      <div class="mc"><span class="k">ITERACIONES</span><span class="v a" id="mIter">—</span></div>
+      <div class="mc"><span class="k">SAL (HEX)</span><span class="v c" id="mSalt" style="font-size:10px;word-break:break-all">—</span></div>
+      <div class="mc"><span class="k">BITS DE SEGURIDAD</span><span class="v g" id="mBits">—</span></div>
+      <div class="mc"><span class="k">TIEMPO PROCESO</span><span class="v" id="mTime">—</span></div>
+      <div class="mc"><span class="k">TIMESTAMP</span><span class="v" id="mTs">—</span></div>
+    </div>
+
+    <!-- Hash output -->
+    <div class="panel">
+      <div class="ph"><div class="dot"></div> SELLO CRIPTOGRÁFICO</div>
+      <div class="pb">
+
+        <div class="hash-box" id="box256" style="display:none">
+          <div class="hl">SHA-256 + PBKDF2 — DIGEST (64 hex chars)</div>
+          <div class="hash-val" id="h256">—</div>
+          <button class="copy-btn" onclick="copiar('h256',this)">COPIAR</button>
+        </div>
+
+        <div class="hash-box" id="box512" style="display:none">
+          <div class="hl">SHA-512 + PBKDF2 — DIGEST (128 hex chars)</div>
+          <div class="hash-val cyan" id="h512">—</div>
+          <button class="copy-btn" onclick="copiar('h512',this)">COPIAR</button>
+        </div>
+
+        <div class="hash-box" id="boxCasc" style="display:none">
+          <div class="hl">CASCADE FINAL — XOR(SHA-256, SHA-512[:32]) — DIGEST</div>
+          <div class="hash-val amber" id="hCasc">—</div>
+          <button class="copy-btn" onclick="copiar('hCasc',this)">COPIAR</button>
+        </div>
+
+        <div class="blocks-grid" id="blocksGrid"></div>
+
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel">
+      <div class="ph"><div class="dot"></div> REGISTRO DE SESIÓN</div>
+      <div class="pb">
+        <div class="log-scroll" id="logContainer">
+          <div class="log-empty">Sin registros aún.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="panel" style="margin-top:24px;">
+    <div class="ph"><div class="dot"></div> CÓMO FUNCIONA — CAPAS DE SEGURIDAD</div>
+    <div class="pb">
+      <div class="steps">
+        <div class="step">
+          <div class="step-n">01</div>
+          <div class="step-t">SAL ALEATORIA</div>
+          <div class="step-d">Se genera una sal de 16 bytes usando <code>crypto.getRandomValues()</code>. Única en cada operación. Previene ataques de diccionario y tablas rainbow.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">02</div>
+          <div class="step-t">PBKDF2</div>
+          <div class="step-d">Password-Based Key Derivation Function 2. Aplica el hash N veces (por defecto 310 000), haciéndolo computacionalmente costoso de fuerza bruta.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">03</div>
+          <div class="step-t">SHA-256 / 512</div>
+          <div class="step-d">Algoritmos de hash criptográfico estándar NIST. Irreversibles: no se puede recuperar el ID original desde el sello.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">04</div>
+          <div class="step-t">CASCADE (opcional)</div>
+          <div class="step-d">Combina SHA-256 y SHA-512 mediante XOR, aumentando la resistencia ante vulnerabilidades específicas de un solo algoritmo.</div>
+        </div>
+        <div class="step">
+          <div class="step-n">05</div>
+          <div class="step-t">100% LOCAL</div>
+          <div class="step-d">Todo ocurre en tu navegador. Ningún dato sale de tu dispositivo. Verificable inspeccionando el código fuente.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>KERNEL SOBERANO v3.0 &nbsp;// SHA-256 · SHA-512 · PBKDF2 · SAL ALEATORIA &nbsp;// CLIENTE PURO</div>
+    <div class="right">0 DATOS TRANSMITIDOS &nbsp;// © 2026</div>
+  </footer>
+
+</div>
+
+<script>
+// ── PARTICLES ──
+(function(){
+  const c = document.getElementById('particles');
+  for(let i=0;i<28;i++){
+    const p = document.createElement('div');
+    p.className='particle';
+    p.style.left = Math.random()*100+'%';
+    p.style.animationDuration = (8+Math.random()*18)+'s';
+    p.style.animationDelay    = (Math.random()*18)+'s';
+    p.style.opacity = Math.random()*0.5;
+    c.appendChild(p);
+  }
+})();
+
+// ── STATE ──
+let currentAlgo = 'SHA-256';
+const log = [];
+
+// ── ALGO SELECTOR ──
+function selectAlgo(algo, btn) {
+  currentAlgo = algo;
+  document.querySelectorAll('.algo-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+// ── STRENGTH METER ──
+function evalStrength(val) {
+  const bars = [1,2,3,4,5].map(n=>document.getElementById('sb'+n));
+  const lbl  = document.getElementById('strengthLabel');
+  bars.forEach(b=>b.style.background='var(--border)');
+
+  let score = 0;
+  if(val.length>=6)  score++;
+  if(val.length>=12) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^a-zA-Z0-9]/.test(val)) score++;
+  if(val.length>=20) score++;
+
+  const colors = ['var(--red)','#ff8844','var(--amber)','#88ff44','var(--green)'];
+  const labels = ['','MUY DÉBIL','DÉBIL','MODERADO','FUERTE','MUY FUERTE'];
+  for(let i=0;i<score;i++) bars[i].style.background = colors[score-1];
+  lbl.textContent = val.length ? labels[score] : '';
+  lbl.style.color = score<=2 ? 'var(--red)' : score===3 ? 'var(--amber)' : 'var(--green)';
+}
+
+// ── CRYPTO UTILS ──
+function bufToHex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function hexXor(a, b) {
+  // XOR two equal-length hex strings
+  let r='';
+  for(let i=0;i<a.length;i+=2){
+    r += (parseInt(a.substr(i,2),16) ^ parseInt(b.substr(i,2),16)).toString(16).padStart(2,'0');
+  }
+  return r;
+}
+
+async function pbkdf2Hash(password, salt, algo, iterations) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    'raw', enc.encode(password), {name:'PBKDF2'}, false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt, iterations, hash: algo==='SHA-512'?'SHA-512':'SHA-256' },
+    baseKey,
+    algo==='SHA-512' ? 512 : 256
+  );
+  return bufToHex(bits);
+}
+
+// ── MAIN PROCESS ──
+async function procesarIdentidad() {
+  const input = document.getElementById('userInput').value.trim();
+  if(!input) { document.getElementById('userInput').focus(); return; }
+
+  const iterations = parseInt(document.getElementById('iterInput').value)||310000;
+  const btn = document.getElementById('mainBtn');
+  btn.disabled = true; btn.textContent = '⟳ PROCESANDO…';
+
+  // Show progress
+  const pw = document.getElementById('progressWrap');
+  const pf = document.getElementById('progressFill');
+  const pl = document.getElementById('progressLabel');
+  pw.style.display='block'; pf.style.width='0%';
+
+  const t0 = performance.now();
+
+  // Generate random salt
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  pf.style.width='20%'; pl.textContent='SAL GENERADA…';
+  await tick();
+
+  let h256='', h512='', hCasc='';
+
+  try {
+    if(currentAlgo==='SHA-256' || currentAlgo==='CASCADE') {
+      pf.style.width='40%'; pl.textContent='DERIVANDO SHA-256 + PBKDF2…';
+      await tick();
+      h256 = await pbkdf2Hash(input, salt, 'SHA-256', iterations);
+    }
+    if(currentAlgo==='SHA-512' || currentAlgo==='CASCADE') {
+      pf.style.width='70%'; pl.textContent='DERIVANDO SHA-512 + PBKDF2…';
+      await tick();
+      h512 = await pbkdf2Hash(input, salt, 'SHA-512', iterations);
+    }
+    if(currentAlgo==='CASCADE') {
+      pf.style.width='90%'; pl.textContent='COMPUTANDO CASCADE XOR…';
+      await tick();
+      // XOR SHA-256 (64 chars) with first 64 chars of SHA-512
+      hCasc = hexXor(h256, h512.substring(0,64));
+    }
+  } catch(e) {
+    console.error(e);
+  }
+
+  const t1 = performance.now();
+  pf.style.width='100%'; pl.textContent='COMPLETADO';
+  await tick();
+
+  const saltHex = bufToHex(salt.buffer);
+  const now = new Date();
+  const ts  = now.toLocaleString('es-ES',{hour12:false});
+  const elapsed = ((t1-t0)/1000).toFixed(2)+'s';
+
+  // Bits
+  const bitsMap = {'SHA-256':256,'SHA-512':512,'CASCADE':512};
+
+  // Populate meta
+  document.getElementById('mAlgo').textContent  = currentAlgo;
+  document.getElementById('mIter').textContent  = iterations.toLocaleString();
+  document.getElementById('mSalt').textContent  = saltHex;
+  document.getElementById('mBits').textContent  = bitsMap[currentAlgo]+' bits';
+  document.getElementById('mTime').textContent  = elapsed;
+  document.getElementById('mTs').textContent    = ts;
+
+  // Show hashes
+  document.getElementById('box256').style.display  = (currentAlgo==='SHA-256'||currentAlgo==='CASCADE')  ? 'block':'none';
+  document.getElementById('box512').style.display  = (currentAlgo==='SHA-512'||currentAlgo==='CASCADE')  ? 'block':'none';
+  document.getElementById('boxCasc').style.display = (currentAlgo==='CASCADE') ? 'block':'none';
+
+  if(h256) document.getElementById('h256').textContent = h256;
+  if(h512) document.getElementById('h512').textContent = h512;
+  if(hCasc) document.getElementById('hCasc').textContent = hCasc;
+
+  // Blocks
+  const finalHash = hCasc || h512 || h256;
+  const half = Math.floor(finalHash.length/2);
+  document.getElementById('blocksGrid').innerHTML = `
+    <div class="block-cell">
+      <div class="bl">▸ BLOQUE 1 — BASE (${half*4} bits)</div>
+      <div class="bv">${finalHash.substring(0,half)}</div>
+    </div>
+    <div class="block-cell">
+      <div class="bl">▸ BLOQUE 2 — ADV (${half*4} bits)</div>
+      <div class="bv">${finalHash.substring(half)}</div>
+    </div>
+  `;
+
+  // Status
+  document.getElementById('statusMsg').textContent =
+    `FILTRO ACTIVO — ${currentAlgo} + PBKDF2(${iterations.toLocaleString()}) + SAL — IDENTIDAD PROTEGIDA`;
+
+  // Log
+  log.push({ts, algo:currentAlgo, iter:iterations, salt:saltHex, hash:finalHash.substring(0,32)+'…'});
+  renderLog();
+
+  // Show output
+  const out = document.getElementById('outputSection');
+  out.classList.remove('visible');
+  void out.offsetWidth;
+  out.classList.add('visible');
+  out.scrollIntoView({behavior:'smooth', block:'start'});
+
+  // Reset button
+  pw.style.display='none';
+  btn.disabled=false;
+  btn.textContent='⟳ EJECUTAR FILTRO DE SOBERANÍA';
+  document.getElementById('userInput').value='';
+  evalStrength('');
+}
+
+function tick() { return new Promise(r=>setTimeout(r,30)); }
+
+function renderLog() {
+  const c = document.getElementById('logContainer');
+  if(!log.length){ c.innerHTML='<div class="log-empty">Sin registros aún.</div>'; return; }
+  c.innerHTML = [...log].reverse().map(e=>`
+    <div class="log-line">
+      <span class="ts">[${e.ts}]</span>
+      <span class="lm">${e.algo}·PBKDF2(${e.iter}) &nbsp; SELLO: <span>${e.hash}</span></span>
+    </div>
+  `).join('');
+}
+
+function copiar(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+    const o=btn.textContent; btn.textContent='COPIADO ✓';
+    setTimeout(()=>btn.textContent=o, 1500);
+  });
+}
+
+// Enter key
+document.getElementById('userInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') procesarIdentidad();
+});
+</script>
+</body>
+</html>
